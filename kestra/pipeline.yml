@@ -1,0 +1,46 @@
+id: api-python-sql
+namespace: blueprint
+
+tasks:
+  - id: api
+    type: io.kestra.plugin.fs.http.Request
+    uri: http://api.weatherapi.com/v1/current.json?key=212a0353103949f68ff83745231112&q=London
+
+  - id: python
+    type: io.kestra.plugin.scripts.python.Script
+    docker:
+      image: python:3.11
+    beforeCommands:
+      - pip install pandas
+      - pip install duckdb
+    warningOnStdErr: false
+    script: |
+      import pandas as pd
+      import duckdb
+      from pandas import json_normalize
+      data =  {{outputs.api.body}}
+      objects = json_normalize(data)
+      objects  = objects.loc[:, ['location.name', 'location.region', 'location.lat', 'location.lon', 'current.precip_in', 'current.humidity','current.cloud', 'current.feelslike_c', 'current.feelslike_f',  'current.vis_km',  'current.vis_miles' , 'current.uv', 'current.gust_mph', 'current.gust_kph' ]]
+      objects.columns = ['name', 'region', 'lat', 'lon', 'precip_in', 'humidity', 'cloud', 'feelslike_c', 'feelslike_f',  'vis_km', 'vis_miles', 'uv', 'gust_mph', 'gust_kph' ]
+      conn = duckdb.connect('/home/weather_db3.duckdb')
+      sql = '''CREATE OR REPLACE TABLE curr_weather (name string, 
+                                          region string, 
+                                          lat string, 
+                                          lon string, 
+                                          precip_in numeric,
+                                          humidity numeric, 
+                                          cloud numeric, 
+                                          feelslike_c numeric, 
+                                          feelslike_f numeric,
+                                          vis_km numeric, 
+                                          vis_miles numeric, 
+                                          uv numeric, 
+                                          gust_mph numeric, 
+                                          gust_kph numeric)'''
+          
+      conn.execute(sql)
+      #inserting data to the database
+      conn.execute("INSERT INTO curr_weather SELECT * FROM objects")
+      #print(conn.execute("SELECT * from curr_weather ").fetchdf())
+      conn.close()
+      print("Done")
