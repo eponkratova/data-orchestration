@@ -1,0 +1,1 @@
+The repository contains scripts used to test three data orchestration tools - Mage, Kestra, and Dagster for orchestrating the job that extracts data from WeatherAPI, does the light-touch transformation and loads it into a DuckDB database.
